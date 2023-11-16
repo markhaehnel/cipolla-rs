@@ -1,37 +1,47 @@
-use lazy_static::lazy_static;
-use std::net::SocketAddr;
+#![warn(clippy::pedantic)]
+#![feature(lazy_cell)]
+
+use std::{net::SocketAddr, sync::LazyLock};
 
 use anyhow::Result;
-use arti_client::{BootstrapBehavior, TorClient};
+use arti_client::TorClient;
 use axum::{
-    body::{self, Body},
-    http::{Method, Request, StatusCode},
-    response::{IntoResponse, Response},
-    routing::get,
+    body::Body,
+    http::{Method, Request},
     Router,
 };
-use hyper::upgrade::Upgraded;
+use tor_rtcompat::PreferredRuntime;
 use tower::{make::Shared, ServiceExt};
+use tower_http::trace::TraceLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-lazy_static! {
-    static ref TOR_CLIENT: TorClient<tor_rtcompat::PreferredRuntime> = TorClient::builder()
-        .bootstrap_behavior(BootstrapBehavior::OnDemand)
-        .create_unbootstrapped()
-        .unwrap();
-}
+use cipolla::{cli, proxy::proxy, tor::build_tor_client};
+
+static ARGS: LazyLock<cli::Cli> = LazyLock::new(cli::parse);
+
+static TOR_CLIENT: LazyLock<TorClient<PreferredRuntime>> =
+    LazyLock::new(|| build_tor_client(ARGS.exit_country.as_deref()));
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "cipolla=debug,axum::rejection=trace".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
     let mut handles = Vec::new();
 
-    let num_ports = 100;
-    let port_from = 8000;
-    let port_to = port_from + num_ports + 1;
+    let num_ports = ARGS.count;
+    let port_from = ARGS.port;
+    let port_to = port_from + num_ports;
 
-    let router_svc = Router::new().route("/", get(|| async { "Hello, World!" }));
+    let router = Router::new().layer(TraceLayer::new_for_http());
 
     let service = tower::service_fn(move |req: Request<Body>| {
-        let router_svc = router_svc.clone();
+        let router_svc = router.clone();
         async move {
             if req.method() == Method::CONNECT {
                 proxy(req, &TOR_CLIENT).await
@@ -40,11 +50,11 @@ async fn main() -> Result<()> {
             }
         }
     });
+
     for port in port_from..port_to {
         let service_clone = service.clone();
-
         let job = tokio::spawn(async move {
-            let addr = SocketAddr::from(([127, 0, 0, 1], port));
+            let addr: SocketAddr = format!("[::]:{port}").parse().expect("Invalid port");
 
             axum::Server::bind(&addr)
                 .http1_preserve_header_case(true)
@@ -52,62 +62,15 @@ async fn main() -> Result<()> {
                 .serve(Shared::new(service_clone))
                 .await
         });
+
         handles.push(job);
     }
 
-    println!("Listening on ports from {} to {}", port_from, port_to);
+    tracing::info!("listening on ports {} to {}", port_from, port_to - 1);
 
     for handle in handles {
         let _ = handle.await?;
     }
-
-    Ok(())
-}
-
-async fn proxy(
-    req: Request<Body>,
-    tor_client: &'static TorClient<tor_rtcompat::PreferredRuntime>,
-) -> Result<Response, hyper::Error> {
-    if let Some(host_addr) = req.uri().authority().map(|auth| auth.to_string()) {
-        println!("{}", host_addr);
-        tokio::task::spawn(async move {
-            match hyper::upgrade::on(req).await {
-                Ok(upgraded) => {
-                    if let Err(e) = tunnel(upgraded, host_addr, tor_client).await {
-                        eprintln!("server io error: {}", e);
-                    };
-                }
-                Err(e) => eprintln!("upgrade error: {}", e),
-            }
-        });
-
-        Ok(Response::new(body::boxed(body::Empty::new())))
-    } else {
-        eprintln!("CONNECT host is not socket addr: {:?}", req.uri());
-        Ok((
-            StatusCode::BAD_REQUEST,
-            "CONNECT must be to a socket address",
-        )
-            .into_response())
-    }
-}
-
-async fn tunnel(
-    mut upgraded: Upgraded,
-    addr: String,
-    tor_client: &'static TorClient<tor_rtcompat::PreferredRuntime>,
-) -> std::io::Result<()> {
-    let tor_client = tor_client.isolated_client();
-
-    let mut server = tor_client.connect(addr).await.unwrap();
-
-    let (from_client, from_server) =
-        tokio::io::copy_bidirectional(&mut upgraded, &mut server).await?;
-
-    println!(
-        "client wrote {} bytes and received {} bytes",
-        from_client, from_server
-    );
 
     Ok(())
 }

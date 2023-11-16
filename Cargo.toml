@@ -7,11 +7,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.75"
-arti-client = "0.11.0"
-axum = "0.6.20"
-hyper = "0.14.27"
-lazy_static = "1.4.0"
+anyhow = { version = "1.0.75" }
+arti-client = { version = "0.11.0", features = ["geoip"] }
+axum = { version = "0.6.20" }
+clap = { version = "4.4.8", features = ["cargo", "derive"] }
+hyper = { version = "0.14.27" }
 tokio = { version = "1.34.0", features = ["full"] }
-tor-rtcompat = "0.9.5"
-tower = "0.4.13"
+tor-geoip = "0.1.2"
+tor-rtcompat = { version = "0.9.5" }
+tower = { version = "0.4.13" }
+tower-http = { version = "0.4.4", features = ["trace"] }
+tracing = { version = "0.1.40" }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
