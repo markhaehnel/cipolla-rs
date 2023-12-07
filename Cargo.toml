@@ -8,13 +8,13 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.75" }
-arti-client = { version = "0.11.0", features = ["geoip"] }
+arti-client = { version = "0.12.0", features = ["geoip"] }
 axum = { version = "0.6.20" }
-clap = { version = "4.4.8", features = ["cargo", "derive"] }
+clap = { version = "4.4.11", features = ["cargo", "derive"] }
 hyper = { version = "0.14.27" }
 tokio = { version = "1.34.0", features = ["full"] }
-tor-geoip = "0.1.2"
-tor-rtcompat = { version = "0.9.5" }
+tor-geoip = "0.1.3"
+tor-rtcompat = { version = "0.9.6" }
 tower = { version = "0.4.13" }
 tower-http = { version = "0.4.4", features = ["trace"] }
 tracing = { version = "0.1.40" }
