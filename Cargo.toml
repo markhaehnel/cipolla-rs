@@ -9,7 +9,7 @@ repository = "https://github.com/markhaehnel/cipolla-rs.git"
 
 [dependencies]
 anyhow = { version = "1.0.75" }
-arti-client = { version = "0.12.0", features = ["geoip"] }
+arti-client = { version = "0.12.0", features = ["geoip", "static-sqlite"] }
 axum = { version = "0.6.20" }
 clap = { version = "4.4.11", features = ["cargo", "derive"] }
 hyper = { version = "0.14.27" }
@@ -42,4 +42,4 @@ targets = [
 # CI backends to support
 ci = ["github"]
 # Publish jobs to run in CI
-pr-run-mode = "plan"
+pr-run-mode = "upload"
