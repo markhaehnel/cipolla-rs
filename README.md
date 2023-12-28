@@ -1,6 +1,7 @@
 # cipolla-rs
 
-[![GitHub workflow status](https://github.com/markhaehnel/bambulab/actions/workflows/ci.yaml/badge.svg)](https://github.com/markhaehnel/bambulab/actions/workflows/ci.yaml)
+[![Latest version](https://img.shields.io/github/v/release/markhaehnel/cipolla-rs)](https://github.com/markhaehnel/cipolla-rs/releases/latest)
+[![GitHub workflow status](https://github.com/markhaehnel/cipolla-rs/actions/workflows/ci.yaml/badge.svg)](https://github.com/markhaehnel/cipolla-rs/actions/workflows/ci.yaml)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
 
 > 🚧 **WORK IN PROGRESS** 🚧
